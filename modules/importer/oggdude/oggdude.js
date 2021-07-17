@@ -11,9 +11,9 @@ import Species from "./importers/species.js";
 import Talents from "./importers/talents.js";
 import Vehicles from "./importers/vehicles.js";
 import Weapons from "./importers/weapons.js";
-
 export default class OggDude {
-  static Import = {
+}
+OggDude.Import = {
     Armor: Armor.Import,
     Career: Career.Import,
     ForcePowers: ForcePowers.Import,
@@ -27,5 +27,4 @@ export default class OggDude {
     Talents: Talents.Import,
     Vehicles: Vehicles.Import,
     Weapons: Weapons.Import,
-  };
-}
+};

@@ -1,31 +1,22 @@
 {
   "name": "starwarsffg",
   "version": "1.0.0",
-  "description": "( PLEASE NOTE: This is a custom fork based on [Jaxxa's implementation](https://github.com/jaxxa/StarWarsFFG/tree/master). )",
+  "description": "A system for playing Star Wars FFG games in Foundry VTT.",
   "main": "index.js",
   "scripts": {
+    "tsc": "tsc",
     "compile": "gulp css",
     "watch": "gulp",
-    "prettier": "prettier --quote-props=preserve --print-width=5000 --write"
+    "prettier": "prettier --quote-props preserve --print-width 5000 --write"
   },
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@league-of-foundry-developers/foundry-vtt-types": "^0.8.8-7",
     "gulp": "^4.0.2",
     "gulp-autoprefixer": "^7.0.1",
     "gulp-sass": "^4.1.0",
     "gulp-sourcemaps": "^2.6.5",
-    "husky": "4.2.5",
-    "lint-staged": "10.2.11",
     "prettier": "2.0.5"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
-  "lint-staged": {
-    "*.{js,html}": "prettier --quote-props=preserve --print-width=5000 --write"
-  },
-  "dependencies": {}
+  }
 }

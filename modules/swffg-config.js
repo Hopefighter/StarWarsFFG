@@ -10,9 +10,7 @@ import { weapon_stats } from "./config/ffg-weapons.js";
 import { armor_stats } from "./config/ffg-armor.js";
 import { talent_activations } from "./config/ffg-talents.js";
 import { difficulty } from "./config/ffg-difficulty.js";
-
 export const FFG = {};
-
 FFG.activations = talent_activations;
 FFG.character_stats = character_stats;
 FFG.characteristics = character_characteristics;
