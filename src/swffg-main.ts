@@ -5,18 +5,29 @@
  */
 
 // Import Modules
-import { FFG } from "./swffg-config.js";
-import { ActorFFG } from "./actors/actor-ffg.js";
-import { CombatFFG } from "./combat-ffg.js";
-import { ItemFFG } from "./items/item-ffg.js";
-import { ItemSheetFFG } from "./items/item-sheet-ffg.js";
-import { ItemSheetFFGV2 } from "./items/item-sheet-ffg-v2.js";
-import { ActorSheetFFG } from "./actors/actor-sheet-ffg.js";
-import { ActorSheetFFGV2 } from "./actors/actor-sheet-ffg-v2.js";
-import { AdversarySheetFFG } from "./actors/adversary-sheet-ffg.js";
-import { AdversarySheetFFGV2 } from "./actors/adversary-sheet-ffg-v2.js";
-import { DicePoolFFG, RollFFG } from "./dice-pool-ffg.js";
-import { GroupManager } from "./groupmanager-ffg.js";
+import {FFG} from "./swffg-config.js";
+import {ActorFFG} from "./actors/actor-ffg.js";
+import {CombatFFG} from "./combat-ffg.js";
+import {ItemFFG} from "./items/item-ffg.js";
+import {ItemSheetFFG} from "./items/item-sheet-ffg.js";
+import {ItemSheetFFGV2} from "./items/item-sheet-ffg-v2.js";
+import {ActorSheetFFG} from "./actors/actor-sheet-ffg.js";
+import {ActorSheetFFGV2} from "./actors/actor-sheet-ffg-v2.js";
+import {AdversarySheetFFG} from "./actors/adversary-sheet-ffg.js";
+import {AdversarySheetFFGV2} from "./actors/adversary-sheet-ffg-v2.js";
+// Import Dice Types
+import {
+  AbilityDie,
+  BoostDie,
+  ChallengeDie,
+  DicePoolFFG,
+  DifficultyDie,
+  ForceDie,
+  ProficiencyDie,
+  RollFFG,
+  SetbackDie
+} from "./dice-pool-ffg.js";
+import {GroupManager} from "./groupmanager-ffg.js";
 import PopoutEditor from "./popout-editor.js";
 
 import CharacterImporter from "./importer/character-importer.js";
@@ -26,15 +37,22 @@ import Helpers from "./helpers/common.js";
 import TemplateHelpers from "./helpers/partial-templates.js";
 import SkillListImporter from "./importer/skills-list-importer.js";
 import DestinyTracker from "./ffg-destiny-tracker.js";
-import { defaultSkillArrayString } from "./config/ffg-skillslist.js";
+import {defaultSkillArrayString} from "./config/ffg-skillslist.js";
 import SettingsHelpers from "./settings/settings-helpers.js";
-
-// Import Dice Types
-import { AbilityDie, BoostDie, ChallengeDie, DifficultyDie, ForceDie, ProficiencyDie, SetbackDie } from "./dice-pool-ffg.js";
-import { createFFGMacro } from "./helpers/macros.js";
+import {createFFGMacro} from "./helpers/macros.js";
 import EmbeddedItemHelpers from "./helpers/embeddeditem-helpers.js";
 import DataImporter from "./importer/data-importer.js";
 import PauseFFG from "./apps/pause-ffg.js";
+import {MessageData} from "@league-of-foundry-developers/foundry-vtt-types/src/foundry/foundry.js/roll";
+import {MacroDataConstructorData} from "@league-of-foundry-developers/foundry-vtt-types/src/foundry/common/data/data.mjs/macroData";
+
+// Helper function for accessing safely initialised game object
+export function getGame(): Game {
+  if(!(game instanceof Game)) {
+    throw new Error('game is not initialized yet!');
+  }
+  return game;
+}
 
 /* -------------------------------------------- */
 /*  Foundry VTT Initialization                  */
@@ -43,7 +61,7 @@ import PauseFFG from "./apps/pause-ffg.js";
 Hooks.once("init", async function () {
   console.log(`Initializing SWFFG System`);
   // Place our classes in their own namespace for later reference.
-  game.ffg = {
+  getGame().ffg = {
     ActorFFG,
     ItemFFG,
     CombatFFG,
@@ -67,15 +85,23 @@ Hooks.once("init", async function () {
 
   // Define custom Roll class
   CONFIG.Dice.rolls.push(CONFIG.Dice.rolls[0]);
+  // @ts-ignore
   CONFIG.Dice.rolls[0] = RollFFG;
 
   // Define DiceTerms
+  // @ts-ignore
   CONFIG.Dice.terms["a"] = AbilityDie;
+  // @ts-ignore
   CONFIG.Dice.terms["b"] = BoostDie;
+  // @ts-ignore
   CONFIG.Dice.terms["c"] = ChallengeDie;
+  // @ts-ignore
   CONFIG.Dice.terms["d"] = DifficultyDie;
+  // @ts-ignore
   CONFIG.Dice.terms["f"] = ForceDie;
+  // @ts-ignore
   CONFIG.Dice.terms["p"] = ProficiencyDie;
+  // @ts-ignore
   CONFIG.Dice.terms["s"] = SetbackDie;
 
   // Give global access to FFG config.
@@ -87,37 +113,39 @@ Hooks.once("init", async function () {
   CONFIG.ui.pause = PauseFFG;
 
   // Override the default Token _drawBar function to allow for FFG style wound and strain values.
-  Token.prototype._drawBar = function (number, bar, data) {
-    let val = Number(data.value);
+  // @ts-ignore
+  Token.prototype._drawBar = function (number, bar, data: any) {
+    let val = Number(data?.value);
     // FFG style behaviour for wounds and strain.
-    if (data.attribute === "stats.wounds" || data.attribute === "stats.strain" || data.attribute === "stats.hullTrauma" || data.attribute === "stats.systemStrain") {
+    if (data?.attribute === "stats.wounds" || data?.attribute === "stats.strain" || data?.attribute === "stats.hullTrauma" || data?.attribute === "stats.systemStrain") {
       val = Number(data.max - data.value);
     }
 
-    const pct = Math.clamped(val, 0, data.max) / data.max;
-    let h = Math.max(canvas.dimensions.size / 12, 8);
+    const canvasSize = canvas?.dimensions?.size ? canvas.dimensions.size : 0;
+    const pct = Math.clamped(val, 0, data?.max) / data?.max;
+    let h = Math.max( canvasSize / 12, 8);
     if (this.data.height >= 2) h *= 1.6; // Enlarge the bar for large tokens
     // Draw the bar
     let color = number === 0 ? [1 - pct / 2, pct, 0] : [0.5 * pct, 0.7 * pct, 0.5 + pct / 2];
     bar
-      .clear()
-      .beginFill(0x000000, 0.5)
-      .lineStyle(2, 0x000000, 0.9)
-      .drawRoundedRect(0, 0, this.w, h, 3)
-      .beginFill(PIXI.utils.rgb2hex(color), 0.8)
-      .lineStyle(1, 0x000000, 0.8)
-      .drawRoundedRect(1, 1, pct * (this.w - 2), h - 2, 2);
+    .clear()
+    .beginFill(0x000000, 0.5)
+    .lineStyle(2, 0x000000, 0.9)
+    .drawRoundedRect(0, 0, this.w, h, 3)
+    .beginFill(PIXI.utils.rgb2hex(color), 0.8)
+    .lineStyle(1, 0x000000, 0.8)
+    .drawRoundedRect(1, 1, pct * (this.w - 2), h - 2, 2);
     // Set position
     let posY = number === 0 ? this.h - h : 0;
     bar.position.set(0, posY);
   };
 
   // Load character templates so that dynamic skills lists work correctly
-  loadTemplates(["systems/starwarsffg/templates/actors/ffg-character-sheet.html", "systems/starwarsffg/templates/actors/ffg-minion-sheet.html"]);
+  await loadTemplates(["systems/starwarsffg/templates/actors/ffg-character-sheet.html", "systems/starwarsffg/templates/actors/ffg-minion-sheet.html"]);
 
   SettingsHelpers.initLevelSettings();
 
-  const uitheme = game.settings.get("starwarsffg", "ui-uitheme");
+  const uitheme = getGame().settings.get("starwarsffg", "ui-uitheme");
 
   switch (uitheme) {
     case "mandar": {
@@ -135,20 +163,20 @@ Hooks.once("init", async function () {
    * @type {String}
    */
   // Register initiative rule
-  game.settings.register("starwarsffg", "initiativeRule", {
-    name: game.i18n.localize("SWFFG.InitiativeMode"),
-    hint: game.i18n.localize("SWFFG.InitiativeModeHint"),
+  getGame().settings.register("starwarsffg", "initiativeRule", {
+    name: getGame().i18n.localize("SWFFG.InitiativeMode"),
+    hint: getGame().i18n.localize("SWFFG.InitiativeModeHint"),
     scope: "world",
     config: true,
     default: "v",
     type: String,
     choices: {
-      v: game.i18n.localize("SWFFG.SkillsNameVigilance"),
-      c: game.i18n.localize("SWFFG.SkillsNameCool"),
+      v: getGame().i18n.localize("SWFFG.SkillsNameVigilance"),
+      c: getGame().i18n.localize("SWFFG.SkillsNameCool"),
     },
     onChange: (rule) => _setffgInitiative(rule),
   });
-  _setffgInitiative(game.settings.get("starwarsffg", "initiativeRule"));
+  _setffgInitiative(getGame().settings.get("starwarsffg", "initiativeRule"));
 
   function _setffgInitiative(initMethod) {
     let formula;
@@ -167,23 +195,25 @@ Hooks.once("init", async function () {
       decimals: 2,
     };
     if (canvas) {
+      // @ts-ignore
       if (canvas?.groupmanager?.window) {
+        // @ts-ignore
         canvas.groupmanager.window.render(true);
       }
     }
   }
 
   async function gameSkillsList() {
-    game.settings.registerMenu("starwarsffg", "addskilltheme", {
-      name: game.i18n.localize("SWFFG.SettingsSkillListImporter"),
-      label: game.i18n.localize("SWFFG.SettingsSkillListImporterLabel"),
-      hint: game.i18n.localize("SWFFG.SettingsSkillListImporterHint"),
+    getGame().settings.registerMenu("starwarsffg", "addskilltheme", {
+      name: getGame().i18n.localize("SWFFG.SettingsSkillListImporter"),
+      label: getGame().i18n.localize("SWFFG.SettingsSkillListImporterLabel"),
+      hint: getGame().i18n.localize("SWFFG.SettingsSkillListImporterHint"),
       icon: "fas fa-file-import",
       type: SkillListImporter,
       restricted: true,
     });
 
-    game.settings.register("starwarsffg", "addskilltheme", {
+    getGame().settings.register("starwarsffg", "addskilltheme", {
       name: "Item Importer",
       scope: "world",
       default: {},
@@ -191,7 +221,7 @@ Hooks.once("init", async function () {
       type: Object,
     });
 
-    game.settings.register("starwarsffg", "arraySkillList", {
+    getGame().settings.register("starwarsffg", "arraySkillList", {
       name: "Skill List",
       scope: "world",
       default: defaultSkillArrayString,
@@ -199,7 +229,7 @@ Hooks.once("init", async function () {
       type: String,
     });
 
-    let skillList = JSON.parse(game.settings.get("starwarsffg", "arraySkillList"));
+    let skillList = JSON.parse(getGame().settings.get("starwarsffg", "arraySkillList"));
     try {
       CONFIG.FFG.alternateskilllists = skillList;
 
@@ -209,9 +239,9 @@ Hooks.once("init", async function () {
         skillChoices[list.id] = list.id;
       });
 
-      game.settings.register("starwarsffg", "skilltheme", {
-        name: game.i18n.localize("SWFFG.SettingsSkillTheme"),
-        hint: game.i18n.localize("SWFFG.SettingsSkillThemeHint"),
+      getGame().settings.register("starwarsffg", "skilltheme", {
+        name: getGame().i18n.localize("SWFFG.SettingsSkillTheme"),
+        hint: getGame().i18n.localize("SWFFG.SettingsSkillThemeHint"),
         scope: "world",
         config: true,
         default: "starwars",
@@ -220,8 +250,8 @@ Hooks.once("init", async function () {
         choices: skillChoices,
       });
 
-      if (game.settings.get("starwarsffg", "skilltheme") !== "starwars") {
-        const altSkills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === game.settings.get("starwarsffg", "skilltheme")).skills));
+      if (getGame().settings.get("starwarsffg", "skilltheme") !== "starwars") {
+        const altSkills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === getGame().settings.get("starwarsffg", "skilltheme")).skills));
 
         let skills = {};
         Object.keys(altSkills).forEach((skillKey) => {
@@ -233,8 +263,8 @@ Hooks.once("init", async function () {
         });
 
         const sorted = Object.keys(skills).sort(function (a, b) {
-          const x = game.i18n.localize(skills[a].abrev);
-          const y = game.i18n.localize(skills[b].abrev);
+          const x = getGame().i18n.localize(skills[a].abrev);
+          const y = getGame().i18n.localize(skills[b].abrev);
 
           return x < y ? -1 : x > y ? 1 : 0;
         });
@@ -249,7 +279,7 @@ Hooks.once("init", async function () {
     } catch (err) {}
 
     Hooks.on("createActor", (actor) => {
-      let skilllist = game.settings.get("starwarsffg", "skilltheme");
+      let skilllist = getGame().settings.get("starwarsffg", "skilltheme");
 
       if (CONFIG.FFG?.alternateskilllists?.length) {
         try {
@@ -292,15 +322,22 @@ Hooks.once("init", async function () {
 
   // Register sheet application classes
   Actors.unregisterSheet("core", ActorSheet);
+  // @ts-ignore
   Actors.registerSheet("ffg", ActorSheetFFG, { makeDefault: true, label: "Actor Sheet v1" });
+  // @ts-ignore
   Actors.registerSheet("ffg", ActorSheetFFGV2, { label: "Actor Sheet v2" });
+  // @ts-ignore
   Actors.registerSheet("ffg", AdversarySheetFFG, { types: ["character"], label: "Adversary Sheet v1" });
+  // @ts-ignore
   Actors.registerSheet("ffg", AdversarySheetFFGV2, { types: ["character"], label: "Adversary Sheet v2" });
   Items.unregisterSheet("core", ItemSheet);
+  // @ts-ignore
   Items.registerSheet("ffg", ItemSheetFFG, { makeDefault: true, label: "Item Sheet v1" });
+  // @ts-ignore
   Items.registerSheet("ffg", ItemSheetFFGV2, { label: "Item Sheet v2" });
 
   // Add utilities to the global scope, this can be useful for macro makers
+  // @ts-ignore
   window.DicePoolFFG = DicePoolFFG;
 
   // Register Handlebars utilities
@@ -341,7 +378,7 @@ Hooks.once("init", async function () {
   });
 
   Handlebars.registerHelper("renderMultiple", function (count, obj) {
-    let items = [];
+    let items: any = [];
     for (let i = 0; i < count; i += 1) {
       items.push(obj);
     }
@@ -398,7 +435,7 @@ Hooks.once("init", async function () {
   });
 
   Handlebars.registerHelper("ffgDiceSymbols", function (text) {
-    return PopoutEditor.renderDiceImages(text);
+    return PopoutEditor.renderDiceImages(text, null);
   });
 
   Handlebars.registerHelper("object", function ({ hash }) {
@@ -408,13 +445,13 @@ Hooks.once("init", async function () {
     return Array.from(arguments).slice(0, arguments.length - 1);
   });
 
-  TemplateHelpers.preload();
+  await TemplateHelpers.preload();
 });
 
 Hooks.on("renderJournalSheet", (journal, obj, data) => {
   let content = $(obj).find(".editor-content").html();
 
-  $(obj).find(".editor-content").html(PopoutEditor.renderDiceImages(content));
+  $(obj).find(".editor-content").html(PopoutEditor.renderDiceImages(content, null));
 });
 
 Hooks.on("renderSidebarTab", (app, html, data) => {
@@ -422,10 +459,10 @@ Hooks.on("renderSidebarTab", (app, html, data) => {
     const dicePool = new DicePoolFFG();
 
     let user = {
-      data: game.user.data,
+      data: getGame().user?.data,
     };
 
-    await DiceHelpers.displayRollDialog(user, dicePool, game.i18n.localize("SWFFG.RollingDefaultTitle"), "");
+    await DiceHelpers.displayRollDialog(user, dicePool, getGame().i18n.localize("SWFFG.RollingDefaultTitle"), "");
   });
 });
 
@@ -441,16 +478,16 @@ Hooks.on("renderActorDirectory", (app, html, data) => {
 
   html.find(".og-character").click(async (event) => {
     event.preventDefault();
-    new CharacterImporter().render(true);
+    new CharacterImporter({}).render(true);
   });
   html.find(".og-npc").click(async (event) => {
     event.preventDefault();
-    new NPCImporter().render(true);
+    new NPCImporter({}).render(true);
   });
 });
 
 Hooks.on("renderCompendiumDirectory", (app, html, data) => {
-  if (game.user.isGM) {
+  if (getGame().user?.isGM) {
     const div = $(`<div class="og-character-import"></div>`);
     const divider = $("<hr><h4>OggDude Import</h4>");
     const datasetImportButton = $('<button class="og-character">Dataset Importer</button>');
@@ -460,15 +497,15 @@ Hooks.on("renderCompendiumDirectory", (app, html, data) => {
 
     html.find(".og-character").click(async (event) => {
       event.preventDefault();
-      new DataImporter().render(true);
+      new DataImporter({}).render(true);
     });
   }
 });
 
 // Update chat messages with dice images
-Hooks.on("renderChatMessage", (app, html, messageData) => {
+Hooks.on("renderChatMessage", (app, html: JQuery<HTMLElement>, messageData: MessageData<any>) => {
   const content = html.find(".message-content");
-  content[0].innerHTML = PopoutEditor.renderDiceImages(content[0].innerHTML);
+  content[0].innerHTML = PopoutEditor.renderDiceImages(content[0].innerHTML, null);
 
   html.on("click", ".ffg-pool-to-player", () => {
     const poolData = messageData.message.flags.ffg;
@@ -481,20 +518,20 @@ Hooks.on("renderChatMessage", (app, html, messageData) => {
   html.find(".item-display .item-pill, .item-properties .item-pill").on("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const li = event.currentTarget;
-    let uuid = li.dataset.itemId;
-    let modifierId = li.dataset.modifierId;
-    let modifierType = li.dataset.modifierType;
+    const li: HTMLElement = event.currentTarget;
+    let uuid = li.dataset.itemId ? li.dataset.itemId : "";
+    let modifierId = li.dataset.modifierId ? li.dataset.modifierId : "";
+    let modifierType = li.dataset.modifierType ? li.dataset.modifierType : "";
 
     if (li.dataset.uuid) {
       uuid = li.dataset.uuid;
     }
 
-    const parts = uuid.split(".");
+    const parts = uuid ? uuid.split(".") : "";
 
     const [entityName, entityId, embeddedName, embeddedId] = parts;
 
-    await EmbeddedItemHelpers.displayOwnedItemItemModifiersAsJournal(embeddedId, modifierType, modifierId, entityId);
+    await EmbeddedItemHelpers.displayOwnedItemItemModifiersAsJournal(embeddedId, modifierType, modifierId, entityId, null);
   });
 });
 
@@ -502,163 +539,49 @@ Hooks.on("renderChatMessage", (app, html, messageData) => {
 Hooks.once("ready", async () => {
   SettingsHelpers.readyLevelSetting();
 
-  const currentVersion = game.settings.get("starwarsffg", "systemMigrationVersion");
+  const currentVersion = getGame().settings.get("starwarsffg", "systemMigrationVersion");
+  const version = getGame().system.data.version;
 
-  const pattern = /([1-9].[1-9])/gim;
-  const version = game.system.data.version.match(pattern);
-  const isAlpha = game.system.data.version.includes("alpha");
+  if ((currentVersion === "null" || parseFloat(currentVersion) < parseFloat(version)) && getGame().user?.isGM) {
+    CONFIG.logger.log(`Migrating to from ${currentVersion} to ${version}`);
 
-  if ((isAlpha || currentVersion === "null" || parseFloat(currentVersion) < parseFloat(game.system.data.version)) && game.user.isGM) {
-    CONFIG.logger.log(`Migrating to from ${currentVersion} to ${game.system.data.version}`);
+    getGame().actors?.forEach((actor: ActorFFG) => {
+      // migrate all character to using current skill list if not default.
+      let skilllist = getGame().settings.get("starwarsffg", "skilltheme");
 
-    // Calculating wound and strain .value from .real_value is no longer necessary due to the Token._drawBar() override in swffg-main.js
-    // This is a temporary migration check to transfer existing actors .real_value back into the correct .value location.
-    game.actors.forEach((actor) => {
-      if (actor.data.type === "character" || actor.data.type === "minion") {
-        if (actor.data.data.stats.wounds.real_value != null) {
-          actor.data.data.stats.wounds.value = actor.data.data.stats.wounds.real_value;
-          game.actors.get(actor.id).update({ ["data.stats.wounds.real_value"]: null });
-          CONFIG.logger.log("Migrated stats.wounds.value from stats.wounds.real_value");
-          CONFIG.logger.log(actor.data.data.stats.wounds);
-        }
-        if (actor.data.data.stats.strain.real_value != null) {
-          actor.data.data.stats.strain.value = actor.data.data.stats.strain.real_value;
-          game.actors.get(actor.id).update({ ["data.stats.strain.real_value"]: null });
-          CONFIG.logger.log("Migrated stats.strain.value from stats.strain.real_value");
-          CONFIG.logger.log(actor.data.data.stats.strain);
-        }
+      if (CONFIG.FFG?.alternateskilllists?.length) {
+        try {
+          let skills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === skilllist)));
+          CONFIG.logger.log(`Applying skill theme ${skilllist} to actor ${actor.name}`);
 
-        // migrate all character to using current skill list if not default.
-        let skilllist = game.settings.get("starwarsffg", "skilltheme");
+          Object.keys(actor.data.data.skills).forEach((skill) => {
+            if (!skills.skills[skill] && !actor.data.data.skills?.[skill]?.nontheme) {
+              skills.skills[`-=${skill}`] = null;
+            } else {
+              skills.skills[skill] = {
+                ...skills.skills[skill],
+                ...actor.data.data.skills[skill],
+              };
+            }
+          });
 
-        if (CONFIG.FFG?.alternateskilllists?.length) {
-          try {
-            let skills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === skilllist)));
-            CONFIG.logger.log(`Applying skill theme ${skilllist} to actor ${actor.name}`);
-
-            Object.keys(actor.data.data.skills).forEach((skill) => {
-              if (!skills.skills[skill] && !actor.data.data.skills?.[skill]?.nontheme) {
-                skills.skills[`-=${skill}`] = null;
-              } else {
-                skills.skills[skill] = {
-                  ...skills.skills[skill],
-                  ...actor.data.data.skills[skill],
-                };
-              }
-            });
-
-            actor.update({
-              data: {
-                skills: skills.skills,
-              },
-            });
-          } catch (err) {
-            CONFIG.logger.warn(err);
-          }
+          actor.update({
+            data: {
+              skills: skills.skills,
+            },
+          });
+        } catch (err) {
+          CONFIG.logger.warn(err);
         }
       }
     });
 
-    if (currentVersion === "null" || parseFloat(currentVersion) < 1.1) {
-      // Migrate alternate skill lists from file if found
-      try {
-        let skillList = [];
-
-        let data = await FilePicker.browse("data", `worlds/${game.world.id}`, { bucket: null, extensions: [".json", ".JSON"], wildcard: false });
-        if (data.files.includes(`worlds/${game.world.id}/skills.json`)) {
-          // if the skills.json file is found AND the skillsList in setting is the default skill list then read the data from the file.
-          // This will make sure that the data from the JSON file overwrites the data in the setting.
-          if ((await game.settings.get("starwarsffg", "arraySkillList")) === defaultSkillArrayString) {
-            const fileData = await fetch(`/worlds/${game.world.id}/skills.json`).then((response) => response.json());
-            await game.settings.set("starwarsffg", "arraySkillList", JSON.stringify(fileData));
-            skillList = fileData;
-          }
-        } else {
-          skillList = JSON.parse(game.settings.get("starwarsffg", "arraySkillList"));
-        }
-
-        CONFIG.FFG.alternateskilllists = skillList;
-        if (game.settings.get("starwarsffg", "skilltheme") !== "starwars") {
-          const altSkills = JSON.parse(JSON.stringify(CONFIG.FFG.alternateskilllists.find((list) => list.id === game.settings.get("starwarsffg", "skilltheme")).skills));
-
-          let skills = {};
-          Object.keys(altSkills).forEach((skillKey) => {
-            if (altSkills?.[skillKey]?.value) {
-              skills[skillKey] = { ...altSkills[skillKey] };
-            } else {
-              skills[skillKey] = { value: skillKey, ...altSkills[skillKey] };
-            }
-          });
-
-          const sorted = Object.keys(skills).sort(function (a, b) {
-            const x = game.i18n.localize(skills[a].abrev);
-            const y = game.i18n.localize(skills[b].abrev);
-
-            return x < y ? -1 : x > y ? 1 : 0;
-          });
-
-          let ordered = {};
-          sorted.forEach((skill) => {
-            ordered[skill] = skills[skill];
-          });
-
-          CONFIG.FFG.skills = ordered;
-        }
-      } catch (err) {
-        CONFIG.logger.error(err);
-      }
-    }
-
-    if (currentVersion === "null" || parseFloat(currentVersion) < 1.3) {
-      ui.notifications.info(`Migrating Starwars FFG System for version ${game.system.data.version}. Please be patient and do not close your game or shut down your server.`, { permanent: true });
-
-      const pro = [];
-
-      game.packs.entries.forEach((pack) => {
-        pro.push(
-          new Promise(async (resolve, reject) => {
-            const content = await pack.getDocuments();
-            CONFIG.logger.log(`Migrating ${pack.metadata.label} - ${content.length} Entries`);
-
-            const isLocked = pack.locked;
-
-            if (isLocked) {
-              await pack.configure({ locked: false });
-            }
-
-            for (var i = 0; i < content.length; i++) {
-              if (!content[i]?.data?.flags?.ffgimportid && content[i]?.data?.flags?.importid) {
-                CONFIG.logger.debug(`Migrating (${content[i].data._id}) ${content[i].data.name}`);
-                content[i].update({
-                  flags: {
-                    ffgimportid: content[i].data.flags.importid,
-                  },
-                });
-              }
-            }
-            resolve();
-
-            if (isLocked) {
-              await pack.configure({ locked: true });
-            }
-          })
-        );
-      });
-
-      Promise.all(pro)
-        .then(() => {
-          ui.notifications.info(`Starwars FFG System Migration to version ${game.system.data.version} completed!`, { permanent: true });
-        })
-        .catch((err) => {
-          CONFIG.logger.error(`Error during system migration`, err);
-        });
-    }
-
-    game.settings.set("starwarsffg", "systemMigrationVersion", version);
+    getGame().settings.set("starwarsffg", "systemMigrationVersion", version);
   }
 
   // enable functional testing
-  if (game.user.isGM && window.location.href.includes("localhost") && game?.data?.system?.data?.test) {
+  // @ts-ignore
+  if (getGame().user?.isGM && window.location.href.includes("localhost") && getGame()?.data?.system?.data?.test) {
     const command = `
       const testing = import('/systems/starwarsffg/tests/ffg-tests.js').then((mod) => {
       const tester = new mod.default();
@@ -666,15 +589,15 @@ Hooks.once("ready", async () => {
     });
     `;
 
-    const macro = {
+    const macro: MacroDataConstructorData = {
       name: "Functional Testing",
       type: "script",
       command: command,
     };
 
-    const macroExists = game.macros.entities.find((m) => m.name === macro.name);
+    const macroExists = getGame().macros?.find((m) => m.name === macro.name);
     if (!macroExists) {
-      Macro.create(macro);
+      await Macro.create(macro);
     }
   }
 
@@ -686,12 +609,12 @@ Hooks.once("ready", async () => {
   });
 
   // Display Destiny Pool
-  let destinyPool = { light: game.settings.get("starwarsffg", "dPoolLight"), dark: game.settings.get("starwarsffg", "dPoolDark") };
+  let destinyPool = { light: getGame().settings.get("starwarsffg", "dPoolLight"), dark: getGame().settings.get("starwarsffg", "dPoolDark") };
 
   // future functionality to allow multiple menu items to be passed to destiny pool
   const defaultDestinyMenu = [
     {
-      name: game.i18n.localize("SWFFG.GroupManager"),
+      name: getGame().i18n.localize("SWFFG.GroupManager"),
       icon: '<i class="fas fa-users"></i>',
       callback: () => {
         new GroupManager().render(true);
@@ -699,19 +622,19 @@ Hooks.once("ready", async () => {
       minimumRole: CONST.USER_ROLES.GAMEMASTER,
     },
     {
-      name: game.i18n.localize("SWFFG.RequestDestinyRoll"),
+      name: getGame().i18n.localize("SWFFG.RequestDestinyRoll"),
       icon: '<i class="fas fa-dice-d20"></i>',
       callback: (li) => {
-        const messageText = `<button class="ffg-destiny-roll">${game.i18n.localize("SWFFG.DestinyPoolRoll")}</button>`;
+        const messageText = `<button class="ffg-destiny-roll">${getGame().i18n.localize("SWFFG.DestinyPoolRoll")}</button>`;
 
-        new Map([...game.settings.settings].filter(([k, v]) => v.key.includes("destinyrollers"))).forEach((i) => {
-          game.settings.set(i.module, i.key, undefined);
+        new Map([...getGame().settings.settings].filter(([k, v]) => v.key.includes("destinyrollers"))).forEach((i) => {
+          getGame().settings.set(i.module, i.key, undefined);
         });
 
-        CONFIG.FFG.DestinyGM = game.user.id;
+        CONFIG.FFG.DestinyGM = getGame().user?.id;
 
         ChatMessage.create({
-          user: game.user.id,
+          user: getGame().user?.id,
           content: messageText,
         });
       },
@@ -724,166 +647,166 @@ Hooks.once("ready", async () => {
 });
 
 Hooks.once("diceSoNiceReady", (dice3d) => {
-  let dicetheme = game.settings.get("starwarsffg", "dicetheme");
+  let dicetheme = getGame().settings.get("starwarsffg", "dicetheme");
   if (!dicetheme || dicetheme == "starwars") {
     dice3d.addSystem({ id: "swffg", name: "Star Wars FFG" }, true);
 
     //swffg dice
     dice3d.addDicePreset(
-      {
-        type: "da",
-        labels: ["", "s", "s", "s\ns", "a", "a", "s\na", "a\na"],
-        font: "SWRPG-Symbol-Regular",
-        colorset: "green",
-        system: "swffg",
-      },
-      "d8"
+        {
+          type: "da",
+          labels: ["", "s", "s", "s\ns", "a", "a", "s\na", "a\na"],
+          font: "SWRPG-Symbol-Regular",
+          colorset: "green",
+          system: "swffg",
+        },
+        "d8"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "dd",
-        labels: ["", "f", "f\nf", "t", "t", "t", "t\nt", "f\nt"],
-        font: "SWRPG-Symbol-Regular",
-        colorset: "purple",
-        system: "swffg",
-      },
-      "d8"
+        {
+          type: "dd",
+          labels: ["", "f", "f\nf", "t", "t", "t", "t\nt", "f\nt"],
+          font: "SWRPG-Symbol-Regular",
+          colorset: "purple",
+          system: "swffg",
+        },
+        "d8"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "dp",
-        labels: ["", "s", "s", "s\ns", "s\ns", "a", "s\na", "s\na", "s\na", "a\na", "a\na", "x"],
-        font: "SWRPG-Symbol-Regular",
-        colorset: "yellow",
-        system: "swffg",
-      },
-      "d12"
+        {
+          type: "dp",
+          labels: ["", "s", "s", "s\ns", "s\ns", "a", "s\na", "s\na", "s\na", "a\na", "a\na", "x"],
+          font: "SWRPG-Symbol-Regular",
+          colorset: "yellow",
+          system: "swffg",
+        },
+        "d12"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "dc",
-        labels: ["", "f", "f", "f\nf", "f\nf", "t", "t", "f\nt", "f\nt", "t\nt", "t\nt", "y"],
-        font: "SWRPG-Symbol-Regular",
-        colorset: "red",
-        system: "swffg",
-      },
-      "d12"
+        {
+          type: "dc",
+          labels: ["", "f", "f", "f\nf", "f\nf", "t", "t", "f\nt", "f\nt", "t\nt", "t\nt", "y"],
+          font: "SWRPG-Symbol-Regular",
+          colorset: "red",
+          system: "swffg",
+        },
+        "d12"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "df",
-        labels: ["\nz", "\nz", "\nz", "\nz", "\nz", "\nz", "z\nz", "\nZ", "\nZ", "Z\nZ", "Z\nZ", "Z\nZ"],
-        font: "SWRPG-Symbol-Regular",
-        colorset: "white-sw",
-        system: "swffg",
-      },
-      "d12"
+        {
+          type: "df",
+          labels: ["\nz", "\nz", "\nz", "\nz", "\nz", "\nz", "z\nz", "\nZ", "\nZ", "Z\nZ", "Z\nZ", "Z\nZ"],
+          font: "SWRPG-Symbol-Regular",
+          colorset: "white-sw",
+          system: "swffg",
+        },
+        "d12"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "db",
-        labels: ["", "", "s", "s  \n  a", "a  \n  a", "a"],
-        font: "SWRPG-Symbol-Regular",
-        colorset: "blue",
-        system: "swffg",
-      },
-      "d6"
+        {
+          type: "db",
+          labels: ["", "", "s", "s  \n  a", "a  \n  a", "a"],
+          font: "SWRPG-Symbol-Regular",
+          colorset: "blue",
+          system: "swffg",
+        },
+        "d6"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "ds",
-        labels: ["", "", "f", "f", "t", "t"],
-        font: "SWRPG-Symbol-Regular",
-        colorset: "black-sw",
-        system: "swffg",
-      },
-      "d6"
+        {
+          type: "ds",
+          labels: ["", "", "f", "f", "t", "t"],
+          font: "SWRPG-Symbol-Regular",
+          colorset: "black-sw",
+          system: "swffg",
+        },
+        "d6"
     );
   } else {
     //genesys
     dice3d.addSystem({ id: "genesys", name: "Genesys" }, true);
 
     dice3d.addDicePreset(
-      {
-        type: "da",
-        labels: ["", "s", "s", "s\ns", "a", "a", "s\na", "a\na"],
-        font: "Genesys",
-        colorset: "green",
-        system: "genesys",
-      },
-      "d8"
+        {
+          type: "da",
+          labels: ["", "s", "s", "s\ns", "a", "a", "s\na", "a\na"],
+          font: "Genesys",
+          colorset: "green",
+          system: "genesys",
+        },
+        "d8"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "dd",
-        labels: ["", "f", "f\nf", "h", "h", "h", "h\nh", "f\nh"],
-        font: "Genesys",
-        colorset: "purple",
-        system: "genesys",
-      },
-      "d8"
+        {
+          type: "dd",
+          labels: ["", "f", "f\nf", "h", "h", "h", "h\nh", "f\nh"],
+          font: "Genesys",
+          colorset: "purple",
+          system: "genesys",
+        },
+        "d8"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "dp",
-        labels: ["", "s", "s", "s\ns", "s\ns", "a", "s\na", "s\na", "s\na", "a\na", "a\na", "t"],
-        font: "Genesys",
-        colorset: "yellow",
-        system: "genesys",
-      },
-      "d12"
+        {
+          type: "dp",
+          labels: ["", "s", "s", "s\ns", "s\ns", "a", "s\na", "s\na", "s\na", "a\na", "a\na", "t"],
+          font: "Genesys",
+          colorset: "yellow",
+          system: "genesys",
+        },
+        "d12"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "dc",
-        labels: ["", "f", "f", "f\nf", "f\nf", "h", "h", "f\nh", "f\nh", "h\nh", "h\nh", "d"],
-        font: "Genesys",
-        colorset: "red",
-        system: "genesys",
-      },
-      "d12"
+        {
+          type: "dc",
+          labels: ["", "f", "f", "f\nf", "f\nf", "h", "h", "f\nh", "f\nh", "h\nh", "h\nh", "d"],
+          font: "Genesys",
+          colorset: "red",
+          system: "genesys",
+        },
+        "d12"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "df",
-        labels: ["\nz", "\nz", "\nz", "\nz", "\nz", "\nz", "z\nz", "\nZ", "\nZ", "Z\nZ", "Z\nZ", "Z\nZ"],
-        font: "SWRPG-Symbol-Regular",
-        colorset: "white-sw",
-        system: "genesys",
-      },
-      "d12"
+        {
+          type: "df",
+          labels: ["\nz", "\nz", "\nz", "\nz", "\nz", "\nz", "z\nz", "\nZ", "\nZ", "Z\nZ", "Z\nZ", "Z\nZ"],
+          font: "SWRPG-Symbol-Regular",
+          colorset: "white-sw",
+          system: "genesys",
+        },
+        "d12"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "db",
-        labels: ["", "", "s", "s  \n  a", "a  \n  a", "a"],
-        font: "Genesys",
-        colorset: "blue",
-        system: "genesys",
-      },
-      "d6"
+        {
+          type: "db",
+          labels: ["", "", "s", "s  \n  a", "a  \n  a", "a"],
+          font: "Genesys",
+          colorset: "blue",
+          system: "genesys",
+        },
+        "d6"
     );
 
     dice3d.addDicePreset(
-      {
-        type: "ds",
-        labels: ["", "", "f", "f", "h", "h"],
-        font: "Genesys",
-        colorset: "black-sw",
-        system: "genesys",
-      },
-      "d6"
+        {
+          type: "ds",
+          labels: ["", "", "f", "f", "h", "h"],
+          font: "Genesys",
+          colorset: "black-sw",
+          system: "genesys",
+        },
+        "d6"
     );
   }
 
@@ -946,8 +869,8 @@ Hooks.once("diceSoNiceReady", (dice3d) => {
 });
 
 Hooks.on("pauseGame", () => {
-  if (game.data.paused) {
-    const pausedImage = game.settings.get("starwarsffg", "ui-pausedImage");
+  if (getGame().data.paused) {
+    const pausedImage = getGame().settings.get("starwarsffg", "ui-pausedImage");
     if (pausedImage) {
       $("#pause img").css("content", `url(${pausedImage})`);
     }
